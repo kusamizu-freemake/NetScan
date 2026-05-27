@@ -12,7 +12,6 @@ namespace NetScan
     public static class AppConstants
     {
         // NetScanForm.cs
-
         // ListViewの列名
         public static class ListViewColumns
         {
@@ -27,6 +26,20 @@ namespace NetScan
             public const int IPAddressWidth = 150;
             public const int HostNameWidth = 200;
             public const int StatusWidth = 80;
+        }
+
+        // スキャン設定
+        public static class ScanConfig
+        {
+            public const int PingTimeout = 1000; // Pingのタイムアウト（ミリ秒）
+        }
+
+        // スキャン結果の表示文字列
+        public static class ScanStatus
+        {
+            public const string Online = "オンライン";
+            public const string HostNameUnknown = "取得不可";
+            public const string ScanComplete = "スキャン完了";
         }
 
         // NetScanStartup.cs

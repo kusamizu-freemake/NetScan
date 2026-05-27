@@ -61,6 +61,7 @@
             this.BtnScan.TabIndex = 3;
             this.BtnScan.Text = "スキャン開始";
             this.BtnScan.UseVisualStyleBackColor = true;
+            this.BtnScan.Click += new System.EventHandler(this.BtnScan_Click);
             // 
             // BtnStop
             // 
@@ -70,6 +71,7 @@
             this.BtnStop.TabIndex = 4;
             this.BtnStop.Text = "中止";
             this.BtnStop.UseVisualStyleBackColor = true;
+            this.BtnStop.Click += new System.EventHandler(this.BtnStop_Click);
             // 
             // ListViewResult
             // 
