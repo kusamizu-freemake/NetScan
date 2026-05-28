@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -26,6 +27,7 @@ namespace NetScan
         {
             ListViewResult.Columns.Add(AppConstants.ListViewColumns.IPAddress, AppConstants.ListViewLayout.IPAddressWidth);
             ListViewResult.Columns.Add(AppConstants.ListViewColumns.HostName, AppConstants.ListViewLayout.HostNameWidth);
+            ListViewResult.Columns.Add(AppConstants.ListViewColumns.MacAddress, AppConstants.ListViewLayout.MacAddressWidth); // MACアドレス
             ListViewResult.Columns.Add(AppConstants.ListViewColumns.Status, AppConstants.ListViewLayout.StatusWidth);
 
             // 
@@ -39,15 +41,10 @@ namespace NetScan
             string StartIP = TxtStartIP.Text.Trim();
             string EndIP = TxtEndIP.Text.Trim();
 
-            if (StartIP != EndIP)
+            if (StartIP == EndIP)
             {
-                // IPアドレスの範囲をスキャンする処理をここに実装
-                // 例: IPアドレスの範囲をループしてスキャンするなど
-                MessageBox.Show($"スキャン開始: {StartIP} から {EndIP} まで");
-            }
-            else
-            {
-                MessageBox.Show("開始IPと終了IPは異なる必要があります。");
+                MessageBox.Show(AppConstants.ScanStatus.IPRangeInvalid);
+                return;
             }
 
             // 初期化
@@ -82,10 +79,19 @@ namespace NetScan
                                 hostName = AppConstants.ScanStatus.HostNameUnknown;
                             }
 
-                            // ListViewに追加（オンラインのみ）
-                            ListViewResult.Items.Add(new ListViewItem(new[] { ip, hostName, AppConstants.ScanStatus.Online }));
+                            // MACアドレスの取得
+                            string macAddress = GetMacAddress(ip);
 
-                            System.Diagnostics.Debug.WriteLine($"{ip}  →  OK  ホスト名:{hostName}");
+                            // ListViewに追加（オンラインのみ）
+                            ListViewResult.Items.Add(new ListViewItem(new[] 
+                            {
+                                ip, 
+                                hostName, 
+                                macAddress, 
+                                AppConstants.ScanStatus.Online 
+                            }));
+
+                            System.Diagnostics.Debug.WriteLine($"{ip}  →  OK  ホスト名:{hostName} MACアドレス名:{macAddress}");
                         }
                         else
                         {
@@ -98,10 +104,10 @@ namespace NetScan
                         System.Diagnostics.Debug.WriteLine($"{ip}  →  エラー: {ex.Message}");
                     }
 
-                    System.Diagnostics.Debug.WriteLine(AppConstants.ScanStatus.ScanComplete);
-
                 }
             }
+
+            System.Diagnostics.Debug.WriteLine(AppConstants.ScanStatus.ScanComplete);
         }
 
 
@@ -114,6 +120,42 @@ namespace NetScan
             BtnStop.Enabled = false;
 
         }
+
+        // MACアドレスを取得する
+        private string GetMacAddress(string ipAddress)
+        {
+            try
+            {
+                // arp -a コマンドを実行してMACアドレス取得
+                var process = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "arp",
+                        Arguments = $"-a {ipAddress}",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+              
+                    }
+                };
+                process.Start(); // コマンド実行開始
+                string output = process.StandardOutput.ReadToEnd(); // 実行結果を文字列として受け取る
+                process.WaitForExit(); // コマンドが終わるまで待つ
+
+                // MACアドレスを正規表現で抽出（出力例：xx-xx-xx-xx-xx-xx）
+                var match = Regex.Match(
+                    output, @"([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}");
+
+                return match.Success ? match.Value : AppConstants.ScanStatus.MacAddressUnknown;    
+            }
+            catch
+            {
+                return AppConstants.ScanStatus.MacAddressUnknown;
+            }
+        }
+
+
 
         // IP範囲をリスト化するメソッド
         private List<string> GetIPRange(string StartIP, string EndIP)

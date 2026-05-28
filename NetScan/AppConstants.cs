@@ -17,6 +17,7 @@ namespace NetScan
         {
             public const string IPAddress = "IPアドレス";
             public const string HostName = "ホスト名";
+            public const string MacAddress = "MACアドレス";
             public const string Status = "状態";
         }
 
@@ -25,6 +26,7 @@ namespace NetScan
         {
             public const int IPAddressWidth = 150;
             public const int HostNameWidth = 200;
+            public const int MacAddressWidth = 150;
             public const int StatusWidth = 80;
         }
 
@@ -40,6 +42,8 @@ namespace NetScan
             public const string Online = "オンライン";
             public const string HostNameUnknown = "取得不可";
             public const string ScanComplete = "スキャン完了";
+            public const string MacAddressUnknown = "取得不可";
+            public const string IPRangeInvalid = "開始IPと終了IPは異なる必要があります。";
         }
 
         // NetScanStartup.cs
