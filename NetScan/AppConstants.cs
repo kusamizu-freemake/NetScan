@@ -12,12 +12,12 @@ namespace NetScan
     public static class AppConstants
     {
         // NetScanForm.cs
-
         // ListViewの列名
         public static class ListViewColumns
         {
             public const string IPAddress = "IPアドレス";
             public const string HostName = "ホスト名";
+            public const string MacAddress = "MACアドレス";
             public const string Status = "状態";
         }
 
@@ -26,7 +26,24 @@ namespace NetScan
         {
             public const int IPAddressWidth = 150;
             public const int HostNameWidth = 200;
+            public const int MacAddressWidth = 150;
             public const int StatusWidth = 80;
+        }
+
+        // スキャン設定
+        public static class ScanConfig
+        {
+            public const int PingTimeout = 1000; // Pingのタイムアウト（ミリ秒）
+        }
+
+        // スキャン結果の表示文字列
+        public static class ScanStatus
+        {
+            public const string Online = "オンライン";
+            public const string HostNameUnknown = "取得不可";
+            public const string ScanComplete = "スキャン完了";
+            public const string MacAddressUnknown = "取得不可";
+            public const string IPRangeInvalid = "開始IPと終了IPは異なる必要があります。";
         }
 
         // NetScanStartup.cs
