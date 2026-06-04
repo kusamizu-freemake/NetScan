@@ -14,7 +14,7 @@ namespace NetScan
 {
     public partial class NetScanForm : Form
     {
-        private CancellationTokenSource _cts; // スキャン停止のためのCancellationTokenSource
+        private CancellationTokenSource? _cts; // スキャン停止のためのCancellationTokenSource
 
         public NetScanForm()
         {
@@ -95,7 +95,7 @@ namespace NetScan
                                     // MACアドレスの取得
                                     string macAddress = GetMacAddress(ip);
 
-                                    // UIスレッドへの反映はInvokeで行う
+                                    // Task.Run内はバックグラウンドスレッドのため、UI操作はInvokeを経由してUIスレッドで行う
                                     this.Invoke((Action)(() =>
                                     {
                                         // ListViewに追加（オンラインのみ）
@@ -116,10 +116,10 @@ namespace NetScan
                                     System.Diagnostics.Debug.WriteLine($"{ip}  →  NG");
                                 }
                             }
-                            // スキャン停止ボタンが押された場合は、ここでは処理せず外側の catch で中止処理を行う
+                            // バックグラウンドスレッド内はUI操作不可のため、外側のcatch（UIスレッド）に処理を任せる
                             catch (OperationCanceledException)
                             {
-                                throw;
+                                throw; // 外側のcatchに伝えるため再スロー(UI操作できないため)
                             }
                             // その他の例外はログに出力してスキャンを続行
                             catch (Exception ex)
@@ -137,9 +137,9 @@ namespace NetScan
             // 中止ボタンによるキャンセル → 結果は出力しない
             catch (OperationCanceledException)
             {
-                System.Diagnostics.Debug.WriteLine(AppConstants.ScanStatus.ScanErrorMsg);
+                System.Diagnostics.Debug.WriteLine(AppConstants.ScanStatus.ScanCancelMsg);
                 ListViewResult.Items.Clear(); // 途中結果も消す
-                MessageBox.Show(AppConstants.ScanStatus.ScanErrorMsg);
+                MessageBox.Show(AppConstants.ScanStatus.ScanCancelMsg);
             }
             finally
             {

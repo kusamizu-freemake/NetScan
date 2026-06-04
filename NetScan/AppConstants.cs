@@ -45,7 +45,7 @@ namespace NetScan
             public const string MacAddressUnknown = "取得不可";
             public const string IPRangeInvalid = "開始IPと終了IPは異なる必要があります。";
             public const string ScanCompleteMsg = "スキャン完了しました。";
-            public const string ScanErrorMsg = "スキャンを中止しました。";
+            public const string ScanCancelMsg = "スキャンを中止しました。";
         }
 
         // NetScanStartup.cs
