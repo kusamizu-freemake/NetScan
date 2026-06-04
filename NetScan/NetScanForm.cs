@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,7 +10,7 @@ namespace NetScan
 {
     public partial class NetScanForm : Form
     {
-        private CancellationTokenSource _cts; // スキャン停止のためのCancellationTokenSource
+        private CancellationTokenSource? cts; // スキャン停止のためのCancellationTokenSource
 
         public NetScanForm()
         {
@@ -30,12 +25,11 @@ namespace NetScan
             ListViewResult.Columns.Add(AppConstants.ListViewColumns.MacAddress, AppConstants.ListViewLayout.MacAddressWidth); // MACアドレス
             ListViewResult.Columns.Add(AppConstants.ListViewColumns.Status, AppConstants.ListViewLayout.StatusWidth);
 
-            // 
             BtnStop.Enabled = false; // スキャン停止ボタンは初期状態で無効化
         }
 
         // スキャン開始ボタン
-        private void BtnScan_Click(object sender, EventArgs e)
+        private async void BtnScan_Click(object sender, EventArgs e)
         {
             // 入力されたIPアドレスの範囲を取得
             string StartIP = TxtStartIP.Text.Trim();
@@ -52,62 +46,107 @@ namespace NetScan
             BtnScan.Enabled = false; // スキャン開始ボタンを無効化
             BtnStop.Enabled = true; // スキャン停止ボタンを有効化
 
+
+            // CancellationTokenSourceを新規作成
+            cts = new CancellationTokenSource();
+            CancellationToken token = cts.Token;
+
             // IP範囲リストの作成
             List<string> IPRange = GetIPRange(StartIP, EndIP);
             System.Diagnostics.Debug.WriteLine($"スキャン対象: {IPRange.Count} 件");
 
-            // 各IPにPingを送信
-            foreach (string ip in IPRange)
+            try
             {
-                using (var ping = new System.Net.NetworkInformation.Ping())
+                // バックグラウンドタスクでスキャン処理を実行
+                await Task.Run(() =>
                 {
-                    try
+                    // 各IPにPingを送信
+                    foreach (string ip in IPRange)
                     {
-                        var reply = ping.Send(ip, AppConstants.ScanConfig.PingTimeout);
+                        // キャンセルされたかチェック
+                        token.ThrowIfCancellationRequested();
 
-                        // オンラインのみ処理する
-                        if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
+                        // Pingクラスを使用してオンラインかどうかを確認
+                        using (var ping = new System.Net.NetworkInformation.Ping())
                         {
-                            // ホスト名を取得（取得できない場合は「取得不可」と表示）
-                            string hostName = "";
                             try
                             {
-                                hostName = System.Net.Dns.GetHostEntry(ip).HostName;
+                                // オンラインのみ処理する
+                                var reply = ping.Send(ip, AppConstants.ScanConfig.PingTimeout);
+
+                                // Pingの結果が成功ならホスト名とMACアドレスを取得してListViewに追加
+                                if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
+                                {
+                                    // ホスト名を取得（取得できない場合は「取得不可」と表示）
+                                    string hostName = "";
+                                    try
+                                    {
+                                        hostName = System.Net.Dns.GetHostEntry(ip).HostName;
+                                    }
+                                    catch
+                                    {
+                                        hostName = AppConstants.ScanStatus.HostNameUnknown;
+                                    }
+
+                                    // MACアドレスの取得
+                                    string macAddress = GetMacAddress(ip);
+
+                                    // Task.Run内はバックグラウンドスレッドのため、UI操作はInvokeを経由してUIスレッドで行う
+                                    this.Invoke((Action)(() =>
+                                    {
+                                        // ListViewに追加（オンラインのみ）
+                                        ListViewResult.Items.Add(new ListViewItem(new[]
+                                        {
+                                            ip,
+                                            hostName,
+                                            macAddress,
+                                            AppConstants.ScanStatus.Online
+                                        }));
+                                    }));
+
+                                    System.Diagnostics.Debug.WriteLine($"{ip}  →  OK  ホスト名:{hostName} MACアドレス:{macAddress}");
+                                }
+                                else
+                                {
+                                    // オフラインはデバッグ出力のみ（ListViewには追加しない）
+                                    System.Diagnostics.Debug.WriteLine($"{ip}  →  NG");
+                                }
                             }
-                            catch
+                            // バックグラウンドスレッド内はUI操作不可のため、外側のcatch（UIスレッド）に処理を任せる
+                            catch (OperationCanceledException)
                             {
-                                hostName = AppConstants.ScanStatus.HostNameUnknown;
+                                throw; // 外側のcatchに伝えるため再スロー(UI操作できないため)
                             }
-
-                            // MACアドレスの取得
-                            string macAddress = GetMacAddress(ip);
-
-                            // ListViewに追加（オンラインのみ）
-                            ListViewResult.Items.Add(new ListViewItem(new[] 
+                            // その他の例外はログに出力してスキャンを続行
+                            catch (Exception ex)
                             {
-                                ip, 
-                                hostName, 
-                                macAddress, 
-                                AppConstants.ScanStatus.Online 
-                            }));
-
-                            System.Diagnostics.Debug.WriteLine($"{ip}  →  OK  ホスト名:{hostName} MACアドレス名:{macAddress}");
-                        }
-                        else
-                        {
-                            // オフラインはデバッグ出力のみ（ListViewには追加しない）
-                            System.Diagnostics.Debug.WriteLine($"{ip}  →  NG");
+                                System.Diagnostics.Debug.WriteLine($"{ip}  →  エラー: {ex.Message}");
+                            }
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"{ip}  →  エラー: {ex.Message}");
-                    }
+                });
 
-                }
+                // 正常完了時のみ表示
+                System.Diagnostics.Debug.WriteLine(AppConstants.ScanStatus.ScanComplete);
+                MessageBox.Show(AppConstants.ScanStatus.ScanCompleteMsg);
             }
+            // 中止ボタンによるキャンセル → 結果は出力しない
+            catch (OperationCanceledException)
+            {
+                System.Diagnostics.Debug.WriteLine(AppConstants.ScanStatus.ScanCancelMsg);
+                ListViewResult.Items.Clear(); // 途中結果も消す
+                MessageBox.Show(AppConstants.ScanStatus.ScanCancelMsg);
+            }
+            finally
+            {
+                // 完了・中止どちらでもボタン状態を復元
+                BtnScan.Enabled = true;
+                BtnStop.Enabled = false;
 
-            System.Diagnostics.Debug.WriteLine(AppConstants.ScanStatus.ScanComplete);
+                // CancellationTokenSourceは使い終わったら破棄
+                cts.Dispose();
+                cts = null;
+            }
         }
 
 
@@ -115,9 +154,7 @@ namespace NetScan
         // スキャン停止ボタンのクリックイベントハンドラー
         private void BtnStop_Click(object sender, EventArgs e)
         {
-            _cts?.Cancel();
-            BtnScan.Enabled = true;
-            BtnStop.Enabled = false;
+            cts?.Cancel(); // キャンセル要求を送る
 
         }
 
@@ -174,7 +211,7 @@ namespace NetScan
             return IPRange;
         }
 
-        // IPアドレス→uintに変換
+        // IPアドレス→uintに変換（IPアドレスを数値化して範囲計算を容易にするため）
         private uint IPToUInt(string ipAddress)
         {
             string[] octets = ipAddress.Split('.');
@@ -191,7 +228,7 @@ namespace NetScan
             return ipNum;
         }
 
-        // uint→IPアドレスに変換
+        // uint→IPアドレスに変換（数値化したIPアドレスを元の形式に戻すため）
         private string UIntToIP(uint ipNum)
         {
             return string.Join(".", new[]
