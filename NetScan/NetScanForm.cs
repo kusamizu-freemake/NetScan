@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,7 +10,7 @@ namespace NetScan
 {
     public partial class NetScanForm : Form
     {
-        private CancellationTokenSource? _cts; // スキャン停止のためのCancellationTokenSource
+        private CancellationTokenSource? cts; // スキャン停止のためのCancellationTokenSource
 
         public NetScanForm()
         {
@@ -52,8 +48,8 @@ namespace NetScan
 
 
             // CancellationTokenSourceを新規作成
-            _cts = new CancellationTokenSource();
-            CancellationToken token = _cts.Token;
+            cts = new CancellationTokenSource();
+            CancellationToken token = cts.Token;
 
             // IP範囲リストの作成
             List<string> IPRange = GetIPRange(StartIP, EndIP);
@@ -148,8 +144,8 @@ namespace NetScan
                 BtnStop.Enabled = false;
 
                 // CancellationTokenSourceは使い終わったら破棄
-                _cts.Dispose();
-                _cts = null;
+                cts.Dispose();
+                cts = null;
             }
         }
 
@@ -158,7 +154,7 @@ namespace NetScan
         // スキャン停止ボタンのクリックイベントハンドラー
         private void BtnStop_Click(object sender, EventArgs e)
         {
-            _cts?.Cancel(); // キャンセル要求を送る
+            cts?.Cancel(); // キャンセル要求を送る
 
         }
 
