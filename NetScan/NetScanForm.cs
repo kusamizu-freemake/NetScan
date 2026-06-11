@@ -43,9 +43,9 @@ namespace NetScan
             }
 
             // 初期化
-            ListViewResult.Items.Clear(); // スキャン結果をクリア
-            BtnScan.Enabled = false;     // スキャン開始ボタンを無効化
-            BtnStop.Enabled = true;      // スキャン停止ボタンを有効化
+            ListViewResult.Items.Clear();
+            BtnScan.Enabled = false;
+            BtnStop.Enabled = true;
 
             // CancellationTokenSourceを新規作成
             cts = new CancellationTokenSource();
@@ -78,7 +78,7 @@ namespace NetScan
                                 if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
                                 {
                                     // ARPキャッシュへの登録を待つ
-                                    Thread.Sleep(100);
+                                    Thread.Sleep(AppConstants.ScanConfig.ArpCacheWait);
 
                                     // ホスト名を取得（DNS → NetBIOS の順で試みる。どちらも失敗なら「取得不可」）
                                     string hostName = GetHostName(ip);
@@ -125,11 +125,11 @@ namespace NetScan
                 System.Diagnostics.Debug.WriteLine(AppConstants.ScanStatus.ScanComplete);
                 MessageBox.Show(AppConstants.ScanStatus.ScanCompleteMsg);
             }
-            // 中止ボタンによるキャンセル → 結果は出力しない
+            // 中止ボタンによるキャンセル → 結果は出力しない,途中結果も消す
             catch (OperationCanceledException)
             {
                 System.Diagnostics.Debug.WriteLine(AppConstants.ScanStatus.ScanCancelMsg);
-                ListViewResult.Items.Clear(); // 途中結果も消す
+                ListViewResult.Items.Clear();
                 MessageBox.Show(AppConstants.ScanStatus.ScanCancelMsg);
             }
             finally
@@ -153,24 +153,28 @@ namespace NetScan
         // ホスト名を取得する（DNS → NetBIOS の順で試みる）
         private string GetHostName(string ipAddress)
         {
-            // ① DNS逆引きで取得を試みる
             try
             {
+                // ①DNS逆引きで取得を試みる
                 return System.Net.Dns.GetHostEntry(ipAddress).HostName;
             }
             catch
             {
-                // DNS逆引き失敗 → NetBIOSへフォールバック
+                // ②DNS逆引き失敗 → NetBIOSで取得を試みる
+                return GetHostNameByNetBios(ipAddress);
             }
+        }
 
-            // ② NetBIOS（nbtstat -A）で取得を試みる
+        // NetBIOS（nbtstat -A）でホスト名を取得する
+        private string GetHostNameByNetBios(string ipAddress)
+        {
             try
             {
                 var process = new System.Diagnostics.Process
                 {
                     StartInfo = new System.Diagnostics.ProcessStartInfo
                     {
-                        FileName = "nbtstat",
+                        FileName = @"C:\Windows\System32\nbtstat.exe",
                         Arguments = $"-A {ipAddress}",
                         RedirectStandardOutput = true,
                         UseShellExecute = false,
@@ -178,9 +182,9 @@ namespace NetScan
                     }
                 };
                 process.Start();
-
                 // タイムアウト1秒（応答しない機器で長時間ブロックされないように）
-                bool finished = process.WaitForExit(1000);
+
+                bool finished = process.WaitForExit(AppConstants.ScanConfig.NetBiosHostNameTimeout);
                 string output = finished ? process.StandardOutput.ReadToEnd() : "";
 
                 // タイムアウトした場合はプロセスを強制終了
@@ -192,7 +196,7 @@ namespace NetScan
                 // コンピューター名の行を探す（例: MYPC            <00>  UNIQUE  Registered）
                 // <00> はワークステーションサービス（コンピューター名）を示す
                 var match = Regex.Match(
-                    output, @"^\s*(\S+)\s+<00>\s+UNIQUE", RegexOptions.Multiline);
+                    output, AppConstants.ScanConfig.NetBiosHostNamePattern, RegexOptions.Multiline);
 
                 if (match.Success)
                 {
@@ -207,14 +211,25 @@ namespace NetScan
                 System.Diagnostics.Debug.WriteLine($"[NetBIOS] 例外発生: {ex.Message}");
             }
 
-            // ①②どちらも失敗
+            // DNS・NetBIOSどちらも失敗
             return AppConstants.ScanStatus.HostNameUnknown;
         }
 
-        // MACアドレスを取得する
+        // MACアドレスを取得する（自NIC → ARP の順で試みる）
         private string GetMacAddress(string ipAddress)
         {
-            // 自PCのIPかどうか確認し、一致したらNetworkInterfaceから直接取得する
+            // ① 自PCのNICから取得を試みる（自PCはARPキャッシュに載らないため）
+            string? localMac = GetMacAddressFromLocalNic(ipAddress);
+            if (localMac != null)
+                return localMac;
+
+            // ② 自PC以外 → arp -a で取得を試みる
+            return GetMacAddressFromArp(ipAddress);
+        }
+
+        // 自PCのNICからMACアドレスを取得する（対象IPが自PCでない場合はnullを返す）
+        private string? GetMacAddressFromLocalNic(string ipAddress)
+        {
             foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
             {
                 // 無効なインターフェースはスキップ
@@ -243,10 +258,15 @@ namespace NetScan
                 }
             }
 
-            // 自PC以外 → arp -a でMACアドレスを取得する
+            // 自PCのIPと一致するNICが見つからなかった
+            return null;
+        }
+
+        // arp -a コマンドでMACアドレスを取得する
+        private string GetMacAddressFromArp(string ipAddress)
+        {
             try
             {
-                // arp -a コマンドを実行してMACアドレス取得
                 var process = new System.Diagnostics.Process
                 {
                     StartInfo = new System.Diagnostics.ProcessStartInfo
@@ -258,16 +278,16 @@ namespace NetScan
                         CreateNoWindow = true
                     }
                 };
-                process.Start();                                     // コマンド実行開始
+                process.Start();
                 string output = process.StandardOutput.ReadToEnd(); // 実行結果を文字列として受け取る
-                process.WaitForExit();                               // コマンドが終わるまで待つ
+                process.WaitForExit();
 
                 // ARPの生の出力をデバッグコンソールに表示
                 System.Diagnostics.Debug.WriteLine($"[ARP] {ipAddress} の出力:\n{output}");
 
                 // MACアドレスを正規表現で抽出（出力例：xx-xx-xx-xx-xx-xx）
                 var match = Regex.Match(
-                    output, @"([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}");
+                    output, AppConstants.ScanConfig.MacAddressPattern);
 
                 // 正規表現のマッチ結果を表示
                 System.Diagnostics.Debug.WriteLine(

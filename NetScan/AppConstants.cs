@@ -34,6 +34,16 @@ namespace NetScan
         public static class ScanConfig
         {
             public const int PingTimeout = 1000; // Pingのタイムアウト（ミリ秒）
+            public const int NetBiosHostNameTimeout = 1000; // NetBIOSホスト名の取得タイムアウト（ミリ秒）
+            public const int ArpCacheWait = 100; // ARPキャッシュの更新待ち時間（ミリ秒）
+
+            // NetBIOS名前テーブルからコンピューター名を抽出する正規表現
+            // <00> はワークステーションサービス（コンピューター名）を示す
+            // 例: MYPC            <00>  UNIQUE  Registered
+            public const string NetBiosHostNamePattern = @"^\s*(\S+)\s+<00>\s+UNIQUE";
+
+            // MACアドレスを抽出する正規表現（出力例：xx-xx-xx-xx-xx-xx）
+            public const string MacAddressPattern = @"([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}";
         }
 
         // スキャン結果の表示文字列
