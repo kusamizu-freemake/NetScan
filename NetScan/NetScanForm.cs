@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,7 +23,7 @@ namespace NetScan
         {
             ListViewResult.Columns.Add(AppConstants.ListViewColumns.IPAddress, AppConstants.ListViewLayout.IPAddressWidth);
             ListViewResult.Columns.Add(AppConstants.ListViewColumns.HostName, AppConstants.ListViewLayout.HostNameWidth);
-            ListViewResult.Columns.Add(AppConstants.ListViewColumns.MacAddress, AppConstants.ListViewLayout.MacAddressWidth); // MACアドレス
+            ListViewResult.Columns.Add(AppConstants.ListViewColumns.MacAddress, AppConstants.ListViewLayout.MacAddressWidth);
             ListViewResult.Columns.Add(AppConstants.ListViewColumns.Status, AppConstants.ListViewLayout.StatusWidth);
 
             BtnStop.Enabled = false; // スキャン停止ボタンは初期状態で無効化
@@ -43,9 +44,8 @@ namespace NetScan
 
             // 初期化
             ListViewResult.Items.Clear(); // スキャン結果をクリア
-            BtnScan.Enabled = false; // スキャン開始ボタンを無効化
-            BtnStop.Enabled = true; // スキャン停止ボタンを有効化
-
+            BtnScan.Enabled = false;     // スキャン開始ボタンを無効化
+            BtnStop.Enabled = true;      // スキャン停止ボタンを有効化
 
             // CancellationTokenSourceを新規作成
             cts = new CancellationTokenSource();
@@ -77,16 +77,11 @@ namespace NetScan
                                 // Pingの結果が成功ならホスト名とMACアドレスを取得してListViewに追加
                                 if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
                                 {
-                                    // ホスト名を取得（取得できない場合は「取得不可」と表示）
-                                    string hostName = "";
-                                    try
-                                    {
-                                        hostName = System.Net.Dns.GetHostEntry(ip).HostName;
-                                    }
-                                    catch
-                                    {
-                                        hostName = AppConstants.ScanStatus.HostNameUnknown;
-                                    }
+                                    // ARPキャッシュへの登録を待つ
+                                    Thread.Sleep(100);
+
+                                    // ホスト名を取得（DNS → NetBIOS の順で試みる。どちらも失敗なら「取得不可」）
+                                    string hostName = GetHostName(ip);
 
                                     // MACアドレスの取得
                                     string macAddress = GetMacAddress(ip);
@@ -149,18 +144,106 @@ namespace NetScan
             }
         }
 
-
-
         // スキャン停止ボタンのクリックイベントハンドラー
         private void BtnStop_Click(object sender, EventArgs e)
         {
             cts?.Cancel(); // キャンセル要求を送る
+        }
 
+        // ホスト名を取得する（DNS → NetBIOS の順で試みる）
+        private string GetHostName(string ipAddress)
+        {
+            // ① DNS逆引きで取得を試みる
+            try
+            {
+                return System.Net.Dns.GetHostEntry(ipAddress).HostName;
+            }
+            catch
+            {
+                // DNS逆引き失敗 → NetBIOSへフォールバック
+            }
+
+            // ② NetBIOS（nbtstat -A）で取得を試みる
+            try
+            {
+                var process = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "nbtstat",
+                        Arguments = $"-A {ipAddress}",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
+                process.Start();
+
+                // タイムアウト1秒（応答しない機器で長時間ブロックされないように）
+                bool finished = process.WaitForExit(1000);
+                string output = finished ? process.StandardOutput.ReadToEnd() : "";
+
+                // タイムアウトした場合はプロセスを強制終了
+                if (!finished)
+                    process.Kill();
+
+                System.Diagnostics.Debug.WriteLine($"[NetBIOS] {ipAddress} の出力:\n{output}");
+
+                // コンピューター名の行を探す（例: MYPC            <00>  UNIQUE  Registered）
+                // <00> はワークステーションサービス（コンピューター名）を示す
+                var match = Regex.Match(
+                    output, @"^\s*(\S+)\s+<00>\s+UNIQUE", RegexOptions.Multiline);
+
+                if (match.Success)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[NetBIOS] マッチ成功: {match.Groups[1].Value}");
+                    return match.Groups[1].Value;
+                }
+
+                System.Diagnostics.Debug.WriteLine("[NetBIOS] マッチ失敗（ホスト名が見つからなかった）");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[NetBIOS] 例外発生: {ex.Message}");
+            }
+
+            // ①②どちらも失敗
+            return AppConstants.ScanStatus.HostNameUnknown;
         }
 
         // MACアドレスを取得する
         private string GetMacAddress(string ipAddress)
         {
+            // 自PCのIPかどうか確認し、一致したらNetworkInterfaceから直接取得する
+            foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                // 無効なインターフェースはスキップ
+                if (nic.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up)
+                    continue;
+
+                foreach (var addr in nic.GetIPProperties().UnicastAddresses)
+                {
+                    // IPv4のみ対象
+                    if (addr.Address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+                        continue;
+
+                    if (addr.Address.ToString() == ipAddress)
+                    {
+                        // 自PCのIPと一致 → MACアドレスを直接取得
+                        string localMac = nic.GetPhysicalAddress().ToString();
+
+                        // 取得できなかった場合（仮想NICなど）
+                        if (string.IsNullOrEmpty(localMac))
+                            return AppConstants.ScanStatus.MacAddressUnknown;
+
+                        // 形式を xx-xx-xx-xx-xx-xx に整える
+                        return string.Join("-", Enumerable.Range(0, 6)
+                            .Select(i => localMac.Substring(i * 2, 2)));
+                    }
+                }
+            }
+
+            // 自PC以外 → arp -a でMACアドレスを取得する
             try
             {
                 // arp -a コマンドを実行してMACアドレス取得
@@ -173,36 +256,42 @@ namespace NetScan
                         RedirectStandardOutput = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
-              
                     }
                 };
-                process.Start(); // コマンド実行開始
+                process.Start();                                     // コマンド実行開始
                 string output = process.StandardOutput.ReadToEnd(); // 実行結果を文字列として受け取る
-                process.WaitForExit(); // コマンドが終わるまで待つ
+                process.WaitForExit();                               // コマンドが終わるまで待つ
+
+                // ARPの生の出力をデバッグコンソールに表示
+                System.Diagnostics.Debug.WriteLine($"[ARP] {ipAddress} の出力:\n{output}");
 
                 // MACアドレスを正規表現で抽出（出力例：xx-xx-xx-xx-xx-xx）
                 var match = Regex.Match(
                     output, @"([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}");
 
-                return match.Success ? match.Value : AppConstants.ScanStatus.MacAddressUnknown;    
+                // 正規表現のマッチ結果を表示
+                System.Diagnostics.Debug.WriteLine(
+                    match.Success ? $"[ARP] マッチ成功: {match.Value}" : "[ARP] マッチ失敗（MACアドレスが見つからなかった）");
+
+                return match.Success ? match.Value : AppConstants.ScanStatus.MacAddressUnknown;
             }
-            catch
+            catch (Exception ex)
             {
+                // 例外の内容を表示
+                System.Diagnostics.Debug.WriteLine($"[ARP] 例外発生: {ex.Message}");
                 return AppConstants.ScanStatus.MacAddressUnknown;
             }
         }
-
-
 
         // IP範囲をリスト化するメソッド
         private List<string> GetIPRange(string StartIP, string EndIP)
         {
             List<string> IPRange = new List<string>();
-            
+
             // IPアドレスを数値に変換(uint型を採用,int型では範囲が足りない)
             uint StartIPNum = IPToUInt(StartIP);
             uint EndIPNum = IPToUInt(EndIP);
-            
+
             // 開始IPから終了IPまでループしてリストに追加
             for (uint i = StartIPNum; i <= EndIPNum; i++)
             {
