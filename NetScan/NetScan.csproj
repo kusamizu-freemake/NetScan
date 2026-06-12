@@ -68,7 +68,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AppConstants.cs" />
     <Compile Include="NetScanForm.cs">
       <SubType>Form</SubType>
     </Compile>
