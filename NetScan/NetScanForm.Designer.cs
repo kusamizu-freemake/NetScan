@@ -32,6 +32,7 @@
             this.TxtStartIP = new System.Windows.Forms.MaskedTextBox();
             this.BtnScan = new System.Windows.Forms.Button();
             this.BtnStop = new System.Windows.Forms.Button();
+            this.ProgressBarScan = new System.Windows.Forms.ProgressBar(); // 追加
             this.ListViewResult = new System.Windows.Forms.ListView();
             this.Label1 = new System.Windows.Forms.Label();
             this.Label2 = new System.Windows.Forms.Label();
@@ -73,10 +74,17 @@
             this.BtnStop.UseVisualStyleBackColor = true;
             this.BtnStop.Click += new System.EventHandler(this.BtnStop_Click);
             // 
+            // ProgressBarScan
+            // 
+            this.ProgressBarScan.Location = new System.Drawing.Point(15, 205);
+            this.ProgressBarScan.Name = "ProgressBarScan";
+            this.ProgressBarScan.Size = new System.Drawing.Size(190, 20);
+            this.ProgressBarScan.TabIndex = 5;
+            // 
             // ListViewResult
             // 
-            this.ListViewResult.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.ListViewResult.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.ListViewResult.FullRowSelect = true;
             this.ListViewResult.GridLines = true;
@@ -114,6 +122,7 @@
             this.Controls.Add(this.Label2);
             this.Controls.Add(this.Label1);
             this.Controls.Add(this.ListViewResult);
+            this.Controls.Add(this.ProgressBarScan);
             this.Controls.Add(this.BtnStop);
             this.Controls.Add(this.BtnScan);
             this.Controls.Add(this.TxtStartIP);
@@ -134,9 +143,9 @@
         private System.Windows.Forms.MaskedTextBox TxtStartIP;
         private System.Windows.Forms.Button BtnScan;
         private System.Windows.Forms.Button BtnStop;
+        private System.Windows.Forms.ProgressBar ProgressBarScan;
         private System.Windows.Forms.ListView ListViewResult;
         private System.Windows.Forms.Label Label1;
         private System.Windows.Forms.Label Label2;
     }
 }
-
