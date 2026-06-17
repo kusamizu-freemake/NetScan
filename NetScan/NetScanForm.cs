@@ -46,6 +46,9 @@ namespace NetScan
         private const string MSG_SCAN_COMPLETE = "スキャン完了しました。";
         private const string MSG_SCAN_CANCEL = "スキャンを中止しました。";
 
+        // 進捗バーの初期値
+        private const int PROGRESS_INITIAL_VALUE = 0;
+
         public NetScanForm()
         {
             InitializeComponent(); // フォームデザイナーで設定したUI要素の初期化
@@ -75,18 +78,20 @@ namespace NetScan
                 return;
             }
 
+            // IP範囲リストをここで先に作成（ProgressBarのMaximumに使うため）
+            List<string> IPRange = GetIPRange(StartIP, EndIP);
+            System.Diagnostics.Debug.WriteLine($"スキャン対象: {IPRange.Count} 件");
+
             // 初期化
             ListViewResult.Items.Clear();
             BtnScan.Enabled = false;
             BtnStop.Enabled = true;
+            ProgressBarScan.Maximum = IPRange.Count; // スキャン対象のIP数を最大値にセット
+            ProgressBarScan.Value = PROGRESS_INITIAL_VALUE; // 進捗を0にリセット
 
             // CancellationTokenSourceを新規作成
             cts = new CancellationTokenSource();
             CancellationToken token = cts.Token;
-
-            // IP範囲リストの作成
-            List<string> IPRange = GetIPRange(StartIP, EndIP);
-            System.Diagnostics.Debug.WriteLine($"スキャン対象: {IPRange.Count} 件");
 
             try
             {
@@ -130,12 +135,21 @@ namespace NetScan
                                             macAddress,
                                             STATUS_ONLINE
                                         }));
+
+                                        // 進捗を+1（オンラインIPの追加と同じタイミングで更新）
+                                        ProgressBarScan.Value = Math.Min(ProgressBarScan.Value + 1, ProgressBarScan.Maximum);
                                     }));
 
                                     System.Diagnostics.Debug.WriteLine($"{ip}  →  OK  ホスト名:{hostName} MACアドレス:{macAddress}");
                                 }
                                 else
                                 {
+                                    // オフラインのIPも進捗としてカウントする
+                                    this.Invoke((Action)(() =>
+                                    {
+                                        ProgressBarScan.Value = Math.Min(ProgressBarScan.Value + 1, ProgressBarScan.Maximum);
+                                    }));
+
                                     // オフラインはデバッグ出力のみ（ListViewには追加しない）
                                     System.Diagnostics.Debug.WriteLine($"{ip}  →  NG");
                                 }
@@ -167,9 +181,10 @@ namespace NetScan
             }
             finally
             {
-                // 完了・中止どちらでもボタン状態を復元
+                // 完了・中止どちらでもボタン状態と進捗バーを復元
                 BtnScan.Enabled = true;
                 BtnStop.Enabled = false;
+                ProgressBarScan.Value = PROGRESS_INITIAL_VALUE; // 進捗バーをリセット
 
                 // CancellationTokenSourceは使い終わったら破棄
                 cts.Dispose();
@@ -215,10 +230,12 @@ namespace NetScan
                     }
                 };
                 process.Start();
-                // タイムアウト1秒（応答しない機器で長時間ブロックされないように）
 
+                // 先に出力を全部読んでから終了を待つ（逆順だと出力が途中で切れる可能性あり）
+                string output = process.StandardOutput.ReadToEnd();
+
+                // タイムアウト1秒（応答しない機器で長時間ブロックされないように）
                 bool finished = process.WaitForExit(NETBIOS_HOSTNAME_TIMEOUT);
-                string output = finished ? process.StandardOutput.ReadToEnd() : "";
 
                 // タイムアウトした場合はプロセスを強制終了
                 if (!finished)
