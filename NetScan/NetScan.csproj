@@ -68,6 +68,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="HostNameResolver.cs" />
+    <Compile Include="IpRangeHelper.cs" />
+    <Compile Include="ListViewCopyHelper.cs" />
+    <Compile Include="MacAddressResolver.cs" />
     <Compile Include="NetScanForm.cs">
       <SubType>Form</SubType>
     </Compile>

@@ -28,14 +28,20 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container(); // ContextMenuStripなどコンテナが必要な部品
             this.TxtEndIP = new System.Windows.Forms.TextBox();
             this.TxtStartIP = new System.Windows.Forms.MaskedTextBox();
             this.BtnScan = new System.Windows.Forms.Button();
             this.BtnStop = new System.Windows.Forms.Button();
-            this.ProgressBarScan = new System.Windows.Forms.ProgressBar(); // 追加
+            this.ProgressBarScan = new System.Windows.Forms.ProgressBar();
             this.ListViewResult = new System.Windows.Forms.ListView();
             this.Label1 = new System.Windows.Forms.Label();
             this.Label2 = new System.Windows.Forms.Label();
+            this.ContextMenuStripResult = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.MenuItemCopy = new System.Windows.Forms.ToolStripMenuItem();
+            this.MenuItemCopyCell = new System.Windows.Forms.ToolStripMenuItem();
+            this.ToolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.ContextMenuStripResult.SuspendLayout();
             this.SuspendLayout();
             // 
             // TxtEndIP
@@ -95,6 +101,7 @@
             this.ListViewResult.TabIndex = 6;
             this.ListViewResult.UseCompatibleStateImageBehavior = false;
             this.ListViewResult.View = System.Windows.Forms.View.Details;
+            this.ListViewResult.ContextMenuStrip = this.ContextMenuStripResult; // 右クリックメニューを割り当て
             // 
             // Label1
             // 
@@ -114,6 +121,32 @@
             this.Label2.TabIndex = 8;
             this.Label2.Text = "終了IP";
             // 
+            // ContextMenuStripResult
+            // 
+            this.ContextMenuStripResult.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.MenuItemCopyCell,
+            this.ToolStripSeparator1,
+            this.MenuItemCopy});
+            this.ContextMenuStripResult.Name = "ContextMenuStripResult";
+            this.ContextMenuStripResult.Size = new System.Drawing.Size(160, 54);
+            // 
+            // MenuItemCopyCell
+            // 
+            this.MenuItemCopyCell.Name = "MenuItemCopyCell";
+            this.MenuItemCopyCell.Size = new System.Drawing.Size(159, 22);
+            this.MenuItemCopyCell.Text = "セルをコピー";
+            // 
+            // ToolStripSeparator1
+            // 
+            this.ToolStripSeparator1.Name = "ToolStripSeparator1";
+            this.ToolStripSeparator1.Size = new System.Drawing.Size(156, 6);
+            // 
+            // MenuItemCopy
+            // 
+            this.MenuItemCopy.Name = "MenuItemCopy";
+            this.MenuItemCopy.Size = new System.Drawing.Size(159, 22);
+            this.MenuItemCopy.Text = "行をコピー";
+            // 
             // NetScanForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 15F);
@@ -132,6 +165,7 @@
             this.Text = "NetScan";
             this.TopMost = true;
             this.Load += new System.EventHandler(this.NetScanForm_Load);
+            this.ContextMenuStripResult.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -147,5 +181,9 @@
         private System.Windows.Forms.ListView ListViewResult;
         private System.Windows.Forms.Label Label1;
         private System.Windows.Forms.Label Label2;
+        private System.Windows.Forms.ContextMenuStrip ContextMenuStripResult;
+        private System.Windows.Forms.ToolStripMenuItem MenuItemCopy;
+        private System.Windows.Forms.ToolStripMenuItem MenuItemCopyCell;
+        private System.Windows.Forms.ToolStripSeparator ToolStripSeparator1;
     }
 }
