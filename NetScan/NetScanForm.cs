@@ -18,12 +18,14 @@ namespace NetScan
         private const string COL_IP_ADDRESS = "IPアドレス";
         private const string COL_HOST_NAME = "ホスト名";
         private const string COL_MAC_ADDRESS = "MACアドレス";
+        private const string COL_RESPONSE_TIME = "応答時間(ms)";
         private const string COL_STATUS = "状態";
 
         // ListViewのレイアウト設定
         private const int COL_IP_ADDRESS_WIDTH = 150;
         private const int COL_HOST_NAME_WIDTH = 200;
         private const int COL_MAC_ADDRESS_WIDTH = 150;
+        private const int COL_RESPONSE_TIME_WIDTH = 100;
         private const int COL_STATUS_WIDTH = 80;
 
         // スキャン設定
@@ -53,6 +55,7 @@ namespace NetScan
             ListViewResult.Columns.Add(COL_IP_ADDRESS, COL_IP_ADDRESS_WIDTH);
             ListViewResult.Columns.Add(COL_HOST_NAME, COL_HOST_NAME_WIDTH);
             ListViewResult.Columns.Add(COL_MAC_ADDRESS, COL_MAC_ADDRESS_WIDTH);
+            ListViewResult.Columns.Add(COL_RESPONSE_TIME, COL_RESPONSE_TIME_WIDTH);
             ListViewResult.Columns.Add(COL_STATUS, COL_STATUS_WIDTH);
 
             BtnStop.Enabled = false; // スキャン停止ボタンは初期状態で無効化
@@ -105,9 +108,12 @@ namespace NetScan
                                 // オンラインのみ処理する
                                 var reply = ping.Send(ip, PING_TIMEOUT);
 
-                                // Pingの結果が成功ならホスト名とMACアドレスを取得してListViewに追加
+                                // Pingの結果が成功ならホスト名・MACアドレス・応答時間を取得してListViewに追加
                                 if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
                                 {
+                                    // 応答時間を取得（PingReplyから直接取れる）
+                                    string responseTime = reply.RoundtripTime.ToString();
+
                                     // ARPキャッシュへの登録を待つ
                                     Thread.Sleep(ARP_CACHE_WAIT);
 
@@ -126,6 +132,7 @@ namespace NetScan
                                             ip,
                                             hostName,
                                             macAddress,
+                                            responseTime,
                                             STATUS_ONLINE
                                         }));
 
@@ -133,7 +140,7 @@ namespace NetScan
                                         ProgressBarScan.Value = Math.Min(ProgressBarScan.Value + 1, ProgressBarScan.Maximum);
                                     }));
 
-                                    System.Diagnostics.Debug.WriteLine($"{ip}  →  OK  ホスト名:{hostName} MACアドレス:{macAddress}");
+                                    System.Diagnostics.Debug.WriteLine($"{ip}  →  OK  応答時間:{responseTime}ms  ホスト名:{hostName}  MACアドレス:{macAddress}");
                                 }
                                 else
                                 {
