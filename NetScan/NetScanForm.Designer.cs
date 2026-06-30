@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container(); // ContextMenuStripなどコンテナが必要な部品
+            this.components = new System.ComponentModel.Container();
             this.TxtEndIP = new System.Windows.Forms.TextBox();
             this.TxtStartIP = new System.Windows.Forms.MaskedTextBox();
             this.BtnScan = new System.Windows.Forms.Button();
@@ -38,9 +38,9 @@
             this.Label1 = new System.Windows.Forms.Label();
             this.Label2 = new System.Windows.Forms.Label();
             this.ContextMenuStripResult = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.MenuItemCopy = new System.Windows.Forms.ToolStripMenuItem();
             this.MenuItemCopyCell = new System.Windows.Forms.ToolStripMenuItem();
             this.ToolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.MenuItemCopy = new System.Windows.Forms.ToolStripMenuItem();
             this.ContextMenuStripResult.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -101,7 +101,7 @@
             this.ListViewResult.TabIndex = 6;
             this.ListViewResult.UseCompatibleStateImageBehavior = false;
             this.ListViewResult.View = System.Windows.Forms.View.Details;
-            this.ListViewResult.ContextMenuStrip = this.ContextMenuStripResult; // 右クリックメニューを割り当て
+            this.ListViewResult.ContextMenuStrip = this.ContextMenuStripResult;
             // 
             // Label1
             // 
@@ -168,7 +168,6 @@
             this.ContextMenuStripResult.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
 
         #endregion
@@ -182,8 +181,8 @@
         private System.Windows.Forms.Label Label1;
         private System.Windows.Forms.Label Label2;
         private System.Windows.Forms.ContextMenuStrip ContextMenuStripResult;
-        private System.Windows.Forms.ToolStripMenuItem MenuItemCopy;
         private System.Windows.Forms.ToolStripMenuItem MenuItemCopyCell;
         private System.Windows.Forms.ToolStripSeparator ToolStripSeparator1;
+        private System.Windows.Forms.ToolStripMenuItem MenuItemCopy;
     }
 }

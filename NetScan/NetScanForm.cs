@@ -14,6 +14,9 @@ namespace NetScan
         // 右クリックメニュー（コピー機能）をまとめて管理するクラス
         private ListViewCopyHelper? listViewCopyHelper;
 
+        // ソート機能をまとめて管理するクラス
+        private ListViewSortHelper? listViewSortHelper;
+
         // ListViewの列名
         private const string COL_IP_ADDRESS = "IPアドレス";
         private const string COL_HOST_NAME = "ホスト名";
@@ -46,7 +49,14 @@ namespace NetScan
             InitializeComponent(); // フォームデザイナーで設定したUI要素の初期化
 
             // 右クリックメニュー（コピー機能）をListViewに割り当てる
-            listViewCopyHelper = new ListViewCopyHelper(ListViewResult, ContextMenuStripResult, MenuItemCopy, MenuItemCopyCell);
+            listViewCopyHelper = new ListViewCopyHelper(
+                ListViewResult,
+                ContextMenuStripResult,
+                MenuItemCopy,
+                MenuItemCopyCell);
+
+            // ソート機能をListViewに割り当てる
+            listViewSortHelper = new ListViewSortHelper(ListViewResult);
         }
 
         // ListViewの列を設定
@@ -197,5 +207,15 @@ namespace NetScan
         {
             cts?.Cancel(); // キャンセル要求を送る
         }
+    }
+
+    // ListViewの列インデックスを1か所にまとめて管理するクラス
+    internal static class ColIndex
+    {
+        public const int IpAddress = 0;
+        public const int HostName = 1;
+        public const int MacAddress = 2;
+        public const int ResponseTime = 3;
+        public const int Status = 4;
     }
 }
